@@ -41,26 +41,42 @@ jobs:
 
       - name: Configure (Release, runtime MSVC statique)
         shell: pwsh
+        # -G "Visual Studio 17 2022" : impose le générateur multi-config et laisse
+        # CMake localiser lui-même la toolchain MSVC (sinon il retombe sur « NMake
+        # Makefiles » sans compilateur → CMAKE_CXX_COMPILER not set).
         # En cas d'échec, ré-émet les dernières lignes en annotation (::error::)
         # afin de pouvoir diagnostiquer sans accès admin aux logs bruts.
         run: |
           $out = cmake -S . -B build `
-            -DCARDGAMES_BUILD_CLIENT=ON `
-            -DCARDGAMES_BUILD_SERVER=ON `
-            -DCARDGAMES_BUILD_TESTS=ON `
-            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
-            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 2>&1
+            -G "Visual Studio 17 2022" -A x64 `
+            "-DCARDGAMES_BUILD_CLIENT=ON" `
+            "-DCARDGAMES_BUILD_SERVER=ON" `
+            "-DCARDGAMES_BUILD_TESTS=ON" `
+            "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded" `
+            "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" 2>&1
           $code = $LASTEXITCODE
           $out | Out-String | Write-Host
           if ($code -ne 0) {
-            $tail = ($out | Select-Object -Last 50 | Out-String)
+            $tail = ($out | Select-Object -Last 60 | Out-String)
             $tail = $tail -replace "`r","" -replace "`n","%0A"
             Write-Host "::error::CONFIGURE FAILED ($code)%0A$tail"
             exit $code
           }
 
       - name: Build
-        run: cmake --build build --config Release --parallel
+        shell: pwsh
+        # Même capture d'erreur : si MSVC est plus strict que GCC/Clang, on lit
+        # les erreurs de compilation dans l'annotation.
+        run: |
+          $out = cmake --build build --config Release --parallel 2>&1
+          $code = $LASTEXITCODE
+          $out | Out-String | Write-Host
+          if ($code -ne 0) {
+            $tail = ($out | Select-String -Pattern "error|erreur" | Select-Object -Last 60 | Out-String)
+            $tail = $tail -replace "`r","" -replace "`n","%0A"
+            Write-Host "::error::BUILD FAILED ($code)%0A$tail"
+            exit $code
+          }
 
       - name: Tests
         run: ctest --test-dir build -C Release --output-on-failure
