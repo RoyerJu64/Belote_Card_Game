@@ -40,17 +40,24 @@ jobs:
           cmakeVersion: "3.31.6"
 
       - name: Configure (Release, runtime MSVC statique)
-        # CMAKE_POLICY_VERSION_MINIMUM=3.5 : CMake 4.x (présent sur les runners)
-        # refuse les dépendances déclarant cmake_minimum_required < 3.5. Raylib 5.0
-        # et son GLFW embarqué le font ; cette échappatoire les tolère sans patcher
-        # leur code.
-        run: >
-          cmake -S . -B build
-          -DCARDGAMES_BUILD_CLIENT=ON
-          -DCARDGAMES_BUILD_SERVER=ON
-          -DCARDGAMES_BUILD_TESTS=ON
-          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
-          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+        shell: pwsh
+        # En cas d'échec, ré-émet les dernières lignes en annotation (::error::)
+        # afin de pouvoir diagnostiquer sans accès admin aux logs bruts.
+        run: |
+          $out = cmake -S . -B build `
+            -DCARDGAMES_BUILD_CLIENT=ON `
+            -DCARDGAMES_BUILD_SERVER=ON `
+            -DCARDGAMES_BUILD_TESTS=ON `
+            -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded `
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 2>&1
+          $code = $LASTEXITCODE
+          $out | Out-String | Write-Host
+          if ($code -ne 0) {
+            $tail = ($out | Select-Object -Last 50 | Out-String)
+            $tail = $tail -replace "`r","" -replace "`n","%0A"
+            Write-Host "::error::CONFIGURE FAILED ($code)%0A$tail"
+            exit $code
+          }
 
       - name: Build
         run: cmake --build build --config Release --parallel
