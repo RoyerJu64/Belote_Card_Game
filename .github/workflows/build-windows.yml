@@ -26,12 +26,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Configure (Release, runtime MSVC statique)
+        # CMAKE_POLICY_VERSION_MINIMUM=3.5 : CMake 4.x (présent sur les runners)
+        # refuse les dépendances déclarant cmake_minimum_required < 3.5. Raylib 5.0
+        # et son GLFW embarqué le font ; cette échappatoire les tolère sans patcher
+        # leur code.
         run: >
           cmake -S . -B build
           -DCARDGAMES_BUILD_CLIENT=ON
           -DCARDGAMES_BUILD_SERVER=ON
           -DCARDGAMES_BUILD_TESTS=ON
           -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+          -DCMAKE_POLICY_VERSION_MINIMUM=3.5
 
       - name: Build
         run: cmake --build build --config Release --parallel
