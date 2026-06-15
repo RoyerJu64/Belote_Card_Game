@@ -23,5 +23,10 @@ endif()
 if(CARDGAMES_BUILD_TESTS)
     add_executable(protocol_test tests/protocol_test.cpp)
     target_link_libraries(protocol_test PRIVATE cardgame::protocol)
+    if(MSVC)
+        # Le test contient un littéral UTF-8 ("Julien ♠") ; sans /utf-8 MSVC
+        # l'interprète selon la code page active.
+        target_compile_options(protocol_test PRIVATE /utf-8)
+    endif()
     add_test(NAME protocol_test COMMAND protocol_test)
 endif()

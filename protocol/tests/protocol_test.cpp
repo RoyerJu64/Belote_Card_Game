@@ -1,11 +1,17 @@
 // Round-trip tests for the wire codec: every value written must read back
 // identically, and the streaming frame parser must handle partial/sequential
 // buffers. No networking involved — pure serialization.
+//
+// NOTE : on n'utilise pas <cassert> ici. En build Release `NDEBUG` est défini et
+// `assert(expr)` disparaît complètement — expression incluse — laissant le test
+// ne rien vérifier (et masquant les bugs propres à un compilateur). La macro
+// CHECK ci-dessous est donc toujours évaluée, quel que soit le mode de build.
 
-#include <cassert>
 #include <cstdint>
 #include <iostream>
 #include <span>
+#include <stdexcept>
+#include <string>
 #include <vector>
 
 #include "cardgame/net/Messages.hpp"
@@ -15,6 +21,19 @@ using namespace cardgame;
 using namespace cardgame::net;
 
 namespace {
+
+struct CheckFailure : std::runtime_error {
+    using std::runtime_error::runtime_error;
+};
+
+#define CHECK(cond)                                                            \
+    do {                                                                       \
+        if (!(cond)) {                                                         \
+            throw CheckFailure{std::string{__FILE__} + ":" +                   \
+                               std::to_string(__LINE__) + " : CHECK(" #cond    \
+                               ") a échoué"};                                  \
+        }                                                                      \
+    } while (false)
 
 void testPrimitivesRoundTrip() {
     BinaryWriter w;
@@ -28,15 +47,15 @@ void testPrimitivesRoundTrip() {
 
     const auto bytes = w.bytes();
     BinaryReader r{std::span<const std::uint8_t>{bytes}};
-    assert(r.u8() == 0xAB);
-    assert(r.u16() == 0x1234);
-    assert(r.u32() == 0xDEADBEEF);
-    assert(r.i32() == -123456);
-    assert(r.boolean() == true);
-    assert(r.str() == "Julien ♠");
+    CHECK(r.u8() == 0xAB);
+    CHECK(r.u16() == 0x1234);
+    CHECK(r.u32() == 0xDEADBEEF);
+    CHECK(r.i32() == -123456);
+    CHECK(r.boolean() == true);
+    CHECK(r.str() == "Julien ♠");
     const Card c = r.card();
-    assert(c.suit() == Suit::Hearts && c.rank() == 11);
-    assert(r.atEnd());
+    CHECK(c.suit() == Suit::Hearts && c.rank() == 11);
+    CHECK(r.atEnd());
 }
 
 void testMessageRoundTrip() {
@@ -53,17 +72,17 @@ void testMessageRoundTrip() {
     state.scoreB = 72;
 
     const Packet packet = pack(state);
-    assert(packet.type == MessageType::GameState);
+    CHECK(packet.type == MessageType::GameState);
 
     const GameStateMsg back = unpack<GameStateMsg>(packet);
-    assert(back.phase == state.phase);
-    assert(back.trump == state.trump);
-    assert(back.dealer == state.dealer);
-    assert(back.currentPlayer == state.currentPlayer);
-    assert(back.yourHand.size() == 2 && back.yourHand[1].rank() == 14);
-    assert(back.handCounts[2] == 7);
-    assert(back.trick.size() == 1 && back.trick[0].player == 1);
-    assert(back.scoreA == 90 && back.scoreB == 72);
+    CHECK(back.phase == state.phase);
+    CHECK(back.trump == state.trump);
+    CHECK(back.dealer == state.dealer);
+    CHECK(back.currentPlayer == state.currentPlayer);
+    CHECK(back.yourHand.size() == 2 && back.yourHand[1].rank() == 14);
+    CHECK(back.handCounts[2] == 7);
+    CHECK(back.trick.size() == 1 && back.trick[0].player == 1);
+    CHECK(back.scoreA == 90 && back.scoreB == 72);
 }
 
 // The TCP stream delivers bytes in arbitrary chunks; the parser must wait for a
@@ -77,28 +96,33 @@ void testFramingStream() {
     stream.insert(stream.end(), frameB.begin(), frameB.end());
 
     // Incomplete: only the first 3 bytes have arrived.
-    assert(!tryParseFrame(std::span{stream.data(), 3}).complete);
+    CHECK(!tryParseFrame(std::span{stream.data(), static_cast<std::size_t>(3)}).complete);
 
     std::size_t offset = 0;
     const FrameParse first = tryParseFrame(std::span{stream.data() + offset, stream.size() - offset});
-    assert(first.complete && first.packet.type == MessageType::Login);
-    assert(unpack<LoginMsg>(first.packet).name == "Alice");
+    CHECK(first.complete && first.packet.type == MessageType::Login);
+    CHECK(unpack<LoginMsg>(first.packet).name == "Alice");
     offset += first.consumed;
 
     const FrameParse second = tryParseFrame(std::span{stream.data() + offset, stream.size() - offset});
-    assert(second.complete && second.packet.type == MessageType::PlayCard);
-    assert(unpack<PlayCardMsg>(second.packet).card == (Card{Suit::Spades, 11}));
+    CHECK(second.complete && second.packet.type == MessageType::PlayCard);
+    CHECK(unpack<PlayCardMsg>(second.packet).card == (Card{Suit::Spades, 11}));
     offset += second.consumed;
 
-    assert(offset == stream.size());
+    CHECK(offset == stream.size());
 }
 
 } // namespace
 
 int main() {
-    testPrimitivesRoundTrip();
-    testMessageRoundTrip();
-    testFramingStream();
+    try {
+        testPrimitivesRoundTrip();
+        testMessageRoundTrip();
+        testFramingStream();
+    } catch (const std::exception& e) {
+        std::cerr << "Protocole : ECHEC — " << e.what() << '\n';
+        return 1;
+    }
     std::cout << "Protocole : codec, messages et framing — round-trip OK\n";
     return 0;
 }
