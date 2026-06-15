@@ -86,7 +86,17 @@ jobs:
           }
 
       - name: Tests
-        run: ctest --test-dir build --output-on-failure
+        shell: pwsh
+        run: |
+          $out = ctest --test-dir build --output-on-failure 2>&1
+          $code = $LASTEXITCODE
+          $out | Out-String | Write-Host
+          if ($code -ne 0) {
+            $tail = ($out | Select-Object -Last 60 | Out-String)
+            $tail = $tail -replace "`r","" -replace "`n","%0A"
+            Write-Host "::error::TESTS FAILED ($code)%0A$tail"
+            exit $code
+          }
 
       - name: Rassembler les binaires
         shell: pwsh
