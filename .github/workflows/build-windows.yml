@@ -22,6 +22,12 @@ jobs:
     runs-on: windows-latest
 
     steps:
+      # Raylib (via FetchContent) crée une arborescence très profonde ; sans cela
+      # le `git checkout` dépasse la limite Windows de 260 caractères et la
+      # configuration échoue avec « Filename too long ».
+      - name: Activer les chemins longs (Git + Windows)
+        run: git config --system core.longpaths true
+
       - name: Checkout
         uses: actions/checkout@v4
 
