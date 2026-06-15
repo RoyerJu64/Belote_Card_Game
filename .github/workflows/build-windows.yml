@@ -34,21 +34,28 @@ jobs:
       # Les runners embarquent CMake 4.x, qui rejette par une erreur fatale les
       # dépendances déclarant cmake_minimum_required < 3.5 (Raylib 5.0 = 3.0).
       # On fige CMake sur la dernière 3.x, qui les accepte — comme en local.
-      - name: Installer CMake 3.31
+      - name: Installer CMake 3.31 + Ninja
         uses: lukka/get-cmake@latest
         with:
           cmakeVersion: "3.31.6"
 
+      # Charge l'environnement MSVC (équivalent vcvarsall) : cl.exe et toute la
+      # toolchain sur le PATH, quelle que soit la version de Visual Studio de
+      # l'image. Évite la détection d'instance VS par CMake (qui échouait).
+      - name: Environnement MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
       - name: Configure (Release, runtime MSVC statique)
         shell: pwsh
-        # -G "Visual Studio 17 2022" : impose le générateur multi-config et laisse
-        # CMake localiser lui-même la toolchain MSVC (sinon il retombe sur « NMake
-        # Makefiles » sans compilateur → CMAKE_CXX_COMPILER not set).
+        # Générateur Ninja (mono-config) : utilise simplement cl depuis le PATH,
+        # sans chercher d'instance Visual Studio.
         # En cas d'échec, ré-émet les dernières lignes en annotation (::error::)
         # afin de pouvoir diagnostiquer sans accès admin aux logs bruts.
         run: |
-          $out = cmake -S . -B build `
-            -G "Visual Studio 17 2022" -A x64 `
+          $out = cmake -S . -B build -G Ninja `
+            "-DCMAKE_BUILD_TYPE=Release" `
             "-DCARDGAMES_BUILD_CLIENT=ON" `
             "-DCARDGAMES_BUILD_SERVER=ON" `
             "-DCARDGAMES_BUILD_TESTS=ON" `
@@ -68,7 +75,7 @@ jobs:
         # Même capture d'erreur : si MSVC est plus strict que GCC/Clang, on lit
         # les erreurs de compilation dans l'annotation.
         run: |
-          $out = cmake --build build --config Release --parallel 2>&1
+          $out = cmake --build build --parallel 2>&1
           $code = $LASTEXITCODE
           $out | Out-String | Write-Host
           if ($code -ne 0) {
@@ -79,14 +86,14 @@ jobs:
           }
 
       - name: Tests
-        run: ctest --test-dir build -C Release --output-on-failure
+        run: ctest --test-dir build --output-on-failure
 
       - name: Rassembler les binaires
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path dist | Out-Null
-          Copy-Item build/client/Release/belote_client.exe dist/
-          Copy-Item build/server/Release/belote_server.exe dist/
+          Copy-Item build/client/belote_client.exe dist/
+          Copy-Item build/server/belote_server.exe dist/
           Copy-Item README.md dist/
 
       - name: Publier les artefacts (chaque build)
