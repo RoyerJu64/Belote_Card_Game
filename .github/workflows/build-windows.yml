@@ -1,0 +1,60 @@
+name: Build Windows
+
+# Compile le client (Raylib) et le serveur pour Windows, en liant le runtime
+# MSVC en statique : les .exe produits sont autonomes (aucune DLL ni
+# « Visual C++ Redistributable » à installer pour les joueurs).
+#
+# - À chaque push sur main / PR : produit des artefacts téléchargeables
+#   (onglet « Actions » → le run → section « Artifacts »).
+# - Sur un tag « v* » (ex. git tag v1.0 && git push --tags) : publie en plus
+#   une Release GitHub avec les .exe attachés, prêts à partager aux amis.
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure (Release, runtime MSVC statique)
+        run: >
+          cmake -S . -B build
+          -DCARDGAMES_BUILD_CLIENT=ON
+          -DCARDGAMES_BUILD_SERVER=ON
+          -DCARDGAMES_BUILD_TESTS=ON
+          -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+
+      - name: Build
+        run: cmake --build build --config Release --parallel
+
+      - name: Tests
+        run: ctest --test-dir build -C Release --output-on-failure
+
+      - name: Rassembler les binaires
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item build/client/Release/belote_client.exe dist/
+          Copy-Item build/server/Release/belote_server.exe dist/
+          Copy-Item README.md dist/
+
+      - name: Publier les artefacts (chaque build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: belote-windows
+          path: dist/*
+
+      - name: Publier une Release (sur tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*

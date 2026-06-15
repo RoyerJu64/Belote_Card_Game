@@ -26,6 +26,9 @@ target_link_libraries(belote_client
 target_compile_features(belote_client PRIVATE cxx_std_20)
 
 # Warnings on our own code only — raylib headers are included as system headers.
-if(NOT MSVC)
+if(MSVC)
+    # /utf-8 : les sources contiennent des commentaires accentués (UTF-8).
+    target_compile_options(belote_client PRIVATE /utf-8)
+else()
     target_compile_options(belote_client PRIVATE -Wall -Wextra)
 endif()
