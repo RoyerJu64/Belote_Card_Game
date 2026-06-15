@@ -25,6 +25,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Les runners embarquent CMake 4.x, qui rejette par une erreur fatale les
+      # dépendances déclarant cmake_minimum_required < 3.5 (Raylib 5.0 = 3.0).
+      # On fige CMake sur la dernière 3.x, qui les accepte — comme en local.
+      - name: Installer CMake 3.31
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "3.31.6"
+
       - name: Configure (Release, runtime MSVC statique)
         # CMAKE_POLICY_VERSION_MINIMUM=3.5 : CMake 4.x (présent sur les runners)
         # refuse les dépendances déclarant cmake_minimum_required < 3.5. Raylib 5.0
