@@ -26,6 +26,18 @@ target_link_libraries(belote_client
 target_compile_features(belote_client PRIVATE cxx_std_20)
 
 # Warnings on our own code only — raylib headers are included as system headers.
-if(NOT MSVC)
+if(MSVC)
+    # /utf-8 : les sources contiennent des commentaires accentués (UTF-8).
+    target_compile_options(belote_client PRIVATE /utf-8)
+else()
     target_compile_options(belote_client PRIVATE -Wall -Wextra)
+endif()
+
+# Sous Windows, Asio inclut <windows.h>, dont les macros/fonctions Win32
+# (Rectangle de GDI, DrawText→DrawTextA et CloseWindow de USER, etc.) entrent en
+# collision avec l'API raylib. Nos unités de compilation n'utilisent ni GDI ni
+# USER (seulement Winsock via Asio et le rendu via raylib), on les neutralise.
+# Ciblé sur belote_client : n'affecte pas la compilation de raylib/GLFW.
+if(WIN32)
+    target_compile_definitions(belote_client PRIVATE WIN32_LEAN_AND_MEAN NOGDI NOUSER)
 endif()

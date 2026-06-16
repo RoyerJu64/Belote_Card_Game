@@ -1,0 +1,119 @@
+name: Build Windows
+
+# Compile le client (Raylib) et le serveur pour Windows, en liant le runtime
+# MSVC en statique : les .exe produits sont autonomes (aucune DLL ni
+# « Visual C++ Redistributable » à installer pour les joueurs).
+#
+# - À chaque push sur main / PR : produit des artefacts téléchargeables
+#   (onglet « Actions » → le run → section « Artifacts »).
+# - Sur un tag « v* » (ex. git tag v1.0 && git push --tags) : publie en plus
+#   une Release GitHub avec les .exe attachés, prêts à partager aux amis.
+
+on:
+  push:
+    branches: [main, 'ci/**']
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      # Raylib (via FetchContent) crée une arborescence très profonde ; sans cela
+      # le `git checkout` dépasse la limite Windows de 260 caractères et la
+      # configuration échoue avec « Filename too long ».
+      - name: Activer les chemins longs (Git + Windows)
+        run: git config --system core.longpaths true
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Les runners embarquent CMake 4.x, qui rejette par une erreur fatale les
+      # dépendances déclarant cmake_minimum_required < 3.5 (Raylib 5.0 = 3.0).
+      # On fige CMake sur la dernière 3.x, qui les accepte — comme en local.
+      - name: Installer CMake 3.31 + Ninja
+        uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: "3.31.6"
+
+      # Charge l'environnement MSVC (équivalent vcvarsall) : cl.exe et toute la
+      # toolchain sur le PATH, quelle que soit la version de Visual Studio de
+      # l'image. Évite la détection d'instance VS par CMake (qui échouait).
+      - name: Environnement MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure (Release, runtime MSVC statique)
+        shell: pwsh
+        # Générateur Ninja (mono-config) : utilise simplement cl depuis le PATH,
+        # sans chercher d'instance Visual Studio.
+        # En cas d'échec, ré-émet les dernières lignes en annotation (::error::)
+        # afin de pouvoir diagnostiquer sans accès admin aux logs bruts.
+        run: |
+          $out = cmake -S . -B build -G Ninja `
+            "-DCMAKE_BUILD_TYPE=Release" `
+            "-DCARDGAMES_BUILD_CLIENT=ON" `
+            "-DCARDGAMES_BUILD_SERVER=ON" `
+            "-DCARDGAMES_BUILD_TESTS=ON" `
+            "-DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded" `
+            "-DCMAKE_POLICY_VERSION_MINIMUM=3.5" 2>&1
+          $code = $LASTEXITCODE
+          $out | Out-String | Write-Host
+          if ($code -ne 0) {
+            $tail = ($out | Select-Object -Last 60 | Out-String)
+            $tail = $tail -replace "`r","" -replace "`n","%0A"
+            Write-Host "::error::CONFIGURE FAILED ($code)%0A$tail"
+            exit $code
+          }
+
+      - name: Build
+        shell: pwsh
+        # Même capture d'erreur : si MSVC est plus strict que GCC/Clang, on lit
+        # les erreurs de compilation dans l'annotation.
+        run: |
+          $out = cmake --build build --parallel 2>&1
+          $code = $LASTEXITCODE
+          $out | Out-String | Write-Host
+          if ($code -ne 0) {
+            $tail = ($out | Select-String -Pattern "error|erreur" | Select-Object -Last 60 | Out-String)
+            $tail = $tail -replace "`r","" -replace "`n","%0A"
+            Write-Host "::error::BUILD FAILED ($code)%0A$tail"
+            exit $code
+          }
+
+      - name: Tests
+        shell: pwsh
+        run: |
+          $out = ctest --test-dir build --output-on-failure 2>&1
+          $code = $LASTEXITCODE
+          $out | Out-String | Write-Host
+          if ($code -ne 0) {
+            $tail = ($out | Select-Object -Last 60 | Out-String)
+            $tail = $tail -replace "`r","" -replace "`n","%0A"
+            Write-Host "::error::TESTS FAILED ($code)%0A$tail"
+            exit $code
+          }
+
+      - name: Rassembler les binaires
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          Copy-Item build/client/belote_client.exe dist/
+          Copy-Item build/server/belote_server.exe dist/
+          Copy-Item README.md dist/
+
+      - name: Publier les artefacts (chaque build)
+        uses: actions/upload-artifact@v4
+        with:
+          name: belote-windows
+          path: dist/*
+
+      - name: Publier une Release (sur tag v*)
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*
