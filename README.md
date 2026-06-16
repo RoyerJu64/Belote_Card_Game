@@ -138,9 +138,37 @@ Une personne héberge le **serveur**, tout le monde lance le **client** vers son
   port. Alternatives : redirection du port `5555/TCP` sur la box (IP publique de
   l'hôte), ou héberger le serveur sur un petit **VPS**.
 
-> Pour l'instant les binaires ne sont fournis que construits localement : chaque
-> ami compile le client sur sa machine (le code est portable Windows/macOS/Linux
-> mais seul Linux est testé à ce jour).
+### Pour les joueurs Windows (aucune compilation)
+
+Les amis sous Windows **n'ont rien à compiler** : ils récupèrent un `.exe` prêt à
+l'emploi. Les binaires Windows sont construits automatiquement par GitHub Actions,
+avec le **runtime MSVC lié en statique** — le `.exe` est **autonome**, aucune DLL ni
+« Visual C++ Redistributable » à installer.
+
+**L'hôte (toi) prépare la diffusion, une fois :**
+
+1. Pousse un tag de version pour publier une *Release* GitHub avec les `.exe` :
+   ```bash
+   git tag v1.0 && git push origin v1.0
+   ```
+   La Release apparaît dans l'onglet **Releases** du dépôt, avec `belote_client.exe`
+   téléchargeable par un simple lien.
+2. Installe **Tailscale** sur la machine serveur (`tailscale up`) et récupère son
+   adresse : `tailscale ip -4` → une IP en `100.x.y.z`.
+3. Lance le serveur : `./build/server/belote_server` (il écoute déjà sur toutes les
+   interfaces, donc joignable via Tailscale sans configuration).
+
+**Chaque ami, sous Windows :**
+
+1. Installe **Tailscale** et rejoint ton *tailnet* (tu l'invites depuis la console
+   d'admin Tailscale).
+2. Télécharge `belote_client.exe` depuis la *Release* GitHub.
+3. Double-clique le `.exe`, saisit un pseudo, met ton IP Tailscale `100.x.y.z` comme
+   **hôte** et `5555` comme **port**, puis **Se connecter**.
+
+> Tailscale traverse le NAT et les pare-feu tout seul : pas de redirection de port,
+> pas d'IP publique. Astuce : avec **MagicDNS** activé, l'hôte est joignable par un
+> nom stable (ex. `mon-pc`) au lieu de l'IP.
 
 ## Tests
 
@@ -177,7 +205,7 @@ client/      belote_client (Raylib) : scènes, rendu des cartes, réseau
 - **Pas de reconnexion** : un siège quitté est repris par un bot (pas de reprise).
 - Pas de comptes, pas de chiffrement applicatif, pseudos **ASCII** uniquement.
 - Le **barème Coinche** est une variante volontairement simplifiée (ajustable).
-- Pas encore de builds **Windows/macOS** packagés.
+- Builds **Windows** packagés via CI (Release sur tag `v*`) ; **macOS** non packagé.
 
 Pistes naturelles : barème Coinche complet (annonces), salons + codes d'invitation,
 reconnexion, builds multi-plateformes, et à terme le **Tarot** (le moteur est prêt
