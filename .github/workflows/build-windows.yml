@@ -17,6 +17,11 @@ on:
     branches: [main]
   workflow_dispatch: {}
 
+# Nécessaire pour que l'étape « Publier une Release » puisse créer la Release et y
+# attacher les .exe : le GITHUB_TOKEN est en lecture seule par défaut.
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: windows-latest
