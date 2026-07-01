@@ -1,0 +1,319 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+  width: 100%;
+}
+
+#root {
+  background: #14161a;
+  color: #e6e6e6;
+}
+
+/* ---------- Menus (MainMenu / Lobby) ---------- */
+
+.menu {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: 48px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.menu h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+}
+
+.hint {
+  margin: 0;
+  color: #8a929c;
+  font-size: 14px;
+}
+
+.menu label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #9aa3ad;
+}
+
+.menu input {
+  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #2a2f36;
+  background: #10141a;
+  color: #e6e6e6;
+  font-size: 15px;
+}
+
+button {
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #2a2f36;
+  background: #263041;
+  color: #e6e6e6;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button:hover:not(:disabled) {
+  background: #30405a;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: #2f6f4f;
+  border-color: #3c8a63;
+  font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: #388a61;
+}
+
+.status {
+  color: #8a929c;
+  font-size: 13px;
+}
+
+.error {
+  color: #e0806b;
+}
+
+/* Lobby seats */
+.seats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.seats li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #1b1f24;
+  border: 1px solid #2a2f36;
+}
+
+.seats li.me {
+  border-color: #3c8a63;
+}
+
+.seats .seatnum {
+  font-weight: 700;
+  color: #6bd08a;
+}
+
+.seats .tag {
+  margin-left: auto;
+  font-size: 12px;
+  color: #ffd166;
+}
+
+.modes {
+  display: flex;
+  gap: 10px;
+}
+
+.modes label {
+  flex: 1;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid #2a2f36;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #e6e6e6;
+}
+
+.modes label.on {
+  border-color: #3c8a63;
+  background: #1e2a22;
+}
+
+/* ---------- Game ---------- */
+
+.game {
+  position: relative;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.felt {
+  position: absolute;
+  inset: 0;
+}
+
+.felt canvas {
+  display: block;
+}
+
+.hud {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 10px 16px;
+  pointer-events: none;
+}
+
+.hud .scores {
+  display: flex;
+  gap: 16px;
+  font-weight: 600;
+}
+
+.hud .teamA {
+  color: #7fb2ff;
+}
+
+.hud .teamB {
+  color: #ff9f7f;
+}
+
+.hud .trump {
+  color: #e6f4ea;
+}
+
+.hud .trump .contract {
+  color: #b6c0cc;
+}
+
+.hud .leave {
+  margin-left: auto;
+  pointer-events: auto;
+}
+
+.banner {
+  position: absolute;
+  top: 54px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: #1b1f24cc;
+  color: #b6c0cc;
+  font-size: 14px;
+}
+
+.banner.you {
+  color: #ffd166;
+  border: 1px solid #ffd16655;
+}
+
+/* Bidding panel overlay */
+.overlay-panel {
+  position: absolute;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  width: min(680px, 94vw);
+}
+
+.bidding {
+  background: #12161bee;
+  border: 1px solid #2a2f36;
+  border-radius: 12px;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.bidding h2 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.bidding .contract {
+  margin: 4px 0;
+  color: #e6f4ea;
+}
+
+.bidding .contract.dim {
+  color: #8a929c;
+}
+
+.bidding .turn {
+  margin: 6px 0 10px;
+  color: #ffd166;
+}
+
+.bidrow {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  margin: 6px 0;
+}
+
+.bidrow .value {
+  min-width: 64px;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.bidrow button.on {
+  border-color: #ffd166;
+  color: #ffd166;
+}
+
+/* Notices */
+.notices {
+  position: absolute;
+  bottom: 8px;
+  left: 12px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12px;
+  color: #8a929c;
+  pointer-events: none;
+}
+
+/* Match-over modal */
+.modal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: #000000aa;
+}
+
+.modal h1 {
+  color: #ffd166;
+}
+
+.finalscore {
+  font-size: 24px;
+}

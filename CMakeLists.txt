@@ -38,6 +38,16 @@ if(CARDGAMES_BUILD_SERVER OR CARDGAMES_BUILD_CLIENT)
     target_link_libraries(asio_standalone INTERFACE Threads::Threads)
 endif()
 
+# JSON codec for the web (PixiJS/Tauri) server — a single MIT header, fetched the
+# same way as asio. Only needed by the JSON server target.
+if(CARDGAMES_BUILD_SERVER)
+    FetchContent_Declare(nlohmann_json
+        GIT_REPOSITORY https://github.com/nlohmann/json.git
+        GIT_TAG v3.11.3
+        GIT_SHALLOW TRUE)
+    FetchContent_MakeAvailable(nlohmann_json)
+endif()
+
 if(CARDGAMES_BUILD_SERVER)
     add_subdirectory(server)
 endif()
